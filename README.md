@@ -39,7 +39,12 @@ Images are also published to GHCR on push to `main` / tags `v*`
   - size: contains `talla` (e.g. `Talla samarreta`)
   - collected: contains `recollida` (e.g. `Samarreta recollida`)
   - colla (optional context): contains `colla`
+  - modalitat: contains `pinya`, else `pla`, else `vols fer`
+    (e.g. `Vols fer pinya o només entrar a plaça?`)
 - Collected parses `TRUE/true/1/SI/X/...` (also ✓) as true.
+- Modalitat is sent verbatim as `modalitat`; `acompanya` is true when the
+  normalized (accent/case-insensitive) cell text contains `acompanyar`
+  (e.g. `ACOMPANYAR-VOS sense compromís…`).
 - Toggle writes `TRUE`/`FALSE` with `USER_ENTERED` to the recollida column
   of that row, so Sheets treats it as a real boolean checkbox value.
 
@@ -64,5 +69,5 @@ Images are also published to GHCR on push to `main` / tags `v*`
 - `GET /` — frontend
 - `GET /api/health` → `{"ok":true}`
 - `GET /api/search?q=` → top 50 matches
-- `GET /api/people` → all rows
+- `GET /api/people` → all rows (each row includes `modalitat` and `acompanya`)
 - `POST /api/toggle` `{"row":int,"recollida":bool}` → updated object

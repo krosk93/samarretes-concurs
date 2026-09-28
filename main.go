@@ -25,12 +25,16 @@ var staticFS embed.FS
 
 // Person is one sheet row (Row = 1-based sheet row number, headers = row 1).
 type Person struct {
-	Row      int    `json:"row"`
-	Nom      string `json:"nom"`
-	Alies    string `json:"alies"`
-	Colla    string `json:"colla"`
-	Talla    string `json:"talla"`
-	Recollida bool  `json:"recollida"`
+	Row       int    `json:"row"`
+	Nom       string `json:"nom"`
+	Alies     string `json:"alies"`
+	Colla     string `json:"colla"`
+	Talla     string `json:"talla"`
+	Recollida bool   `json:"recollida"`
+	// Modalitat is the raw text of the "Vols fer pinya o només entrar a plaça?" cell.
+	Modalitat string `json:"modalitat"`
+	// Acompanya is true when the cell opts for "acompanyar" (sense pinya).
+	Acompanya bool `json:"acompanya"`
 }
 
 type config struct {
@@ -170,6 +174,23 @@ func findCol(headers []string, needle string) int {
 	return -1
 }
 
+// findModalitatCol locates the sheet column holding the pinya/plaça choice.
+// Tries "pinya", then "pla", then "vols fer". Returns -1 when absent.
+func findModalitatCol(headers []string) int {
+	for _, needle := range []string{"pinya", "pla", "vols fer"} {
+		if i := findCol(headers, needle); i >= 0 {
+			return i
+		}
+	}
+	return -1
+}
+
+// isAcompanya reports whether the modalitat cell opts to accompany without pinya.
+// Accent- and case-insensitive via Normalize.
+func isAcompanya(v string) bool {
+	return strings.Contains(Normalize(v), "acompanyar")
+}
+
 // parseCollected maps common truthy sheet values to true.
 func parseCollected(v string) bool {
 	switch Normalize(strings.TrimSpace(v)) {
@@ -257,6 +278,7 @@ func (s *Store) fetchAll(ctx context.Context, srv *sheets.Service, cfg config) e
 	iTalla := findCol(rawHeaders, "talla")
 	iRecollida := findCol(rawHeaders, "recollida")
 	iColla := findCol(rawHeaders, "colla")
+	iModalitat := findModalitatCol(rawHeaders)
 
 	var people []Person
 	for r := 1; r < len(resp.Values); r++ {
@@ -266,6 +288,7 @@ func (s *Store) fetchAll(ctx context.Context, srv *sheets.Service, cfg config) e
 		if nom == "" && alies == "" {
 			continue // skip blank rows
 		}
+		modalitat := cellString(row, iModalitat)
 		people = append(people, Person{
 			Row:       r + 1, // 1-based sheet row
 			Nom:       nom,
@@ -273,6 +296,8 @@ func (s *Store) fetchAll(ctx context.Context, srv *sheets.Service, cfg config) e
 			Colla:     cellString(row, iColla),
 			Talla:     cellString(row, iTalla),
 			Recollida: parseCollected(cellString(row, iRecollida)),
+			Modalitat: modalitat,
+			Acompanya: isAcompanya(modalitat),
 		})
 	}
 

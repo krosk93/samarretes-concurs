@@ -2,6 +2,8 @@ const q = document.getElementById('q');
 const list = document.getElementById('list');
 const countEl = document.getElementById('count');
 const statusEl = document.getElementById('status');
+const amagaEl = document.getElementById('amaga');
+const toolbar = document.getElementById('toolbar');
 
 let timer = null;
 let people = [];
@@ -18,9 +20,13 @@ function escapeHtml(s) {
   }[c]));
 }
 
+function plural(n, one, many) {
+  return n === 1 ? one : many;
+}
+
 function card(p) {
   const li = document.createElement('li');
-  li.className = 'card' + (p.recollida ? ' done' : '');
+  li.className = 'card' + (p.recollida ? ' done' : '') + (p.acompanya ? ' acompanya' : '');
   li.dataset.row = p.row;
 
   const badge = p.talla ? `<span class="size">${escapeHtml(p.talla)}</span>` : '';
@@ -28,28 +34,61 @@ function card(p) {
   const status = p.recollida
     ? '<span class="pill ok">✓ Recollida</span>'
     : '<span class="pill pending">Pendent</span>';
+  const acomp = p.acompanya
+    ? `<span class="pill acomp" title="${escapeHtml(p.modalitat || '')}">⚠ Acompanyant — sense pinya</span>`
+    : '';
   const btn = p.recollida
     ? '<button class="btn undo" data-action="unmark">Desmarca</button>'
     : '<button class="btn" data-action="mark">Marca recollida</button>';
 
   li.innerHTML = `
     <div class="top">
-      <div>
+      <div class="who">
         <div class="nom">${escapeHtml(p.nom || '(sense nom)')}</div>
         ${meta ? `<div class="meta">${meta}</div>` : ''}
       </div>
       ${badge}
     </div>
-    <div class="bottom">${status}${btn}</div>`;
+    <div class="bottom">
+      <div class="pills">${status}${acomp}</div>
+      ${btn}
+    </div>`;
   return li;
 }
 
-function render(items) {
+function emptyCard(msg) {
+  const li = document.createElement('li');
+  li.className = 'card empty';
+  li.textContent = msg;
+  return li;
+}
+
+function countText(shown, total) {
+  if (shown === total) return `${total} ${plural(total, 'persona', 'persones')}`;
+  const hidden = total - shown;
+  return `${shown} de ${total} ${plural(total, 'persona', 'persones')} · ${hidden} ${plural(hidden, 'amagat', 'amagats')}`;
+}
+
+function visiblePeople() {
+  return amagaEl.checked ? people.filter((p) => !p.acompanya) : people;
+}
+
+function render() {
+  const total = people.length;
+  const items = visiblePeople();
   list.innerHTML = '';
-  const frag = document.createDocumentFragment();
-  for (const p of items) frag.appendChild(card(p));
-  list.appendChild(frag);
-  countEl.textContent = items.length === 1 ? '1 persona' : `${items.length} persones`;
+  if (items.length === 0 && total > 0) {
+    list.appendChild(emptyCard(
+      amagaEl.checked
+        ? 'Tots els resultats són acompanyants. Desmarca «Amaga acompanyants» per veure\'ls.'
+        : 'Cap resultat.',
+    ));
+  } else {
+    const frag = document.createDocumentFragment();
+    for (const p of items) frag.appendChild(card(p));
+    list.appendChild(frag);
+  }
+  countEl.textContent = countText(items.length, total);
 }
 
 async function fetchJSON(url, opts) {
@@ -71,7 +110,7 @@ async function search() {
   try {
     const url = query ? `/api/search?q=${encodeURIComponent(query)}` : '/api/people';
     people = await fetchJSON(url);
-    render(people);
+    render();
   } catch (e) {
     showStatus(`No s'ha pogut carregar: ${e.message}`, true);
   }
@@ -91,7 +130,7 @@ list.addEventListener('click', async (ev) => {
       body: JSON.stringify({ row, recollida }),
     });
     people = people.map((p) => (p.row === updated.row ? updated : p));
-    render(people);
+    render();
   } catch (e) {
     showStatus(`No s'ha pogut desar: ${e.message}`, true);
   } finally {
@@ -104,4 +143,12 @@ q.addEventListener('input', () => {
   timer = setTimeout(search, 200);
 });
 
+amagaEl.addEventListener('change', render);
+
+function syncStuck() {
+  toolbar.classList.toggle('stuck', window.scrollY > 4);
+}
+window.addEventListener('scroll', syncStuck, { passive: true });
+
 search();
+syncStuck();

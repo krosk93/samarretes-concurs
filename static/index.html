@@ -2,7 +2,7 @@
 <html lang="ca">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Recollida de samarretes — Concurs</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
@@ -12,11 +12,17 @@
   <p class="sub">Cerca per nom o àlies i marca la recollida</p>
 </header>
 <main>
-  <div class="search-wrap">
+  <div class="toolbar" id="toolbar">
     <input id="q" type="search" placeholder="Cerca per nom o àlies…" autocomplete="off" autofocus>
-    <div id="count" class="count"></div>
+    <div class="controls">
+      <label class="switch" for="amaga">
+        <input type="checkbox" id="amaga" checked>
+        <span>Amaga acompanyants</span>
+      </label>
+      <div id="count" class="count" aria-live="polite"></div>
+    </div>
+    <div id="status" class="status" hidden></div>
   </div>
-  <div id="status" class="status" hidden></div>
   <ul id="list" class="cards"></ul>
 </main>
 <script src="/static/app.js"></script>
