@@ -47,6 +47,10 @@ Images are also published to GHCR on push to `main` / tags `v*`
   (e.g. `ACOMPANYAR-VOS sense compromís…`).
 - Toggle writes `TRUE`/`FALSE` with `USER_ENTERED` to the recollida column
   of that row, so Sheets treats it as a real boolean checkbox value.
+- Size values are stored as `S`, `M`, `L`, `XL`, `XXL`, or the canonical
+  "no shirt" literal `Ja tinc una samarreta dels Xiquets del Serrallo`
+  (compared accent/case-insensitively). The UI shows that literal as
+  **No vull samarreta**.
 
 ## SHEET_NAME vs gid note
 
@@ -71,3 +75,15 @@ Images are also published to GHCR on push to `main` / tags `v*`
 - `GET /api/search?q=` → top 50 matches
 - `GET /api/people` → all rows (each row includes `modalitat` and `acompanya`)
 - `POST /api/toggle` `{"row":int,"recollida":bool}` → updated object
+- `POST /api/size` `{"row":int,"talla":string}` → updated object
+
+  Allowed `talla` (trimmed, case-insensitive): `S`, `M`, `L`, `XL`, `XXL`,
+  `Ja tinc una samarreta dels Xiquets del Serrallo` — stored canonically
+  (upper-case sizes, exact long literal).
+
+  | Case | Status | Body |
+  | --- | --- | --- |
+  | OK | 200 | updated `Person` |
+  | Bad JSON / disallowed size / row out of range | 400 | `{"error":...}`, plus `{"allowed":[...]}` for a bad size |
+  | Size column missing from headers | 409 | `{"error":...}` |
+  | Sheets write failed | 502 | `{"error":...}` |

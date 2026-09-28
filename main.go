@@ -130,6 +130,7 @@ type Store struct {
 	people       []Person
 	sheetTitle   string
 	recollidaCol string // A1-notation column letter, e.g. "F"
+	tallaCol     string // A1-notation column letter, e.g. "E"; empty when header missing
 	maxRow       int    // last data row number (1-based)
 }
 
@@ -189,6 +190,29 @@ func findModalitatCol(headers []string) int {
 // Accent- and case-insensitive via Normalize.
 func isAcompanya(v string) bool {
 	return strings.Contains(Normalize(v), "acompanyar")
+}
+
+// noShirtSize is the canonical stored value for "I don't want a t-shirt".
+const noShirtSize = "Ja tinc una samarreta dels Xiquets del Serrallo"
+
+// allowedSizes lists every value /api/size accepts (stored form).
+var allowedSizes = []string{"S", "M", "L", "XL", "XXL", noShirtSize}
+
+// normalizeSize maps a client-supplied size to its canonical stored value.
+// Accepts any case and surrounding whitespace. Returns ok=false when not allowlisted.
+func normalizeSize(v string) (string, bool) {
+	n := Normalize(strings.TrimSpace(v))
+	if n == "" {
+		return "", false
+	}
+	switch n {
+	case "s", "m", "l", "xl", "xxl":
+		return strings.ToUpper(n), true
+	}
+	if n == Normalize(noShirtSize) {
+		return noShirtSize, true
+	}
+	return "", false
 }
 
 // parseCollected maps common truthy sheet values to true.
@@ -261,6 +285,7 @@ func (s *Store) fetchAll(ctx context.Context, srv *sheets.Service, cfg config) e
 		s.people = nil
 		s.sheetTitle = title
 		s.recollidaCol = ""
+		s.tallaCol = ""
 		s.maxRow = 1
 		s.mu.Unlock()
 		return nil
@@ -305,10 +330,15 @@ func (s *Store) fetchAll(ctx context.Context, srv *sheets.Service, cfg config) e
 	if iRecollida >= 0 {
 		recCol = colLetter(iRecollida)
 	}
+	sizeCol := ""
+	if iTalla >= 0 {
+		sizeCol = colLetter(iTalla)
+	}
 	s.mu.Lock()
 	s.people = people
 	s.sheetTitle = title
 	s.recollidaCol = recCol
+	s.tallaCol = sizeCol
 	s.maxRow = len(resp.Values) // values are contiguous from row 1
 	s.mu.Unlock()
 	return nil
@@ -440,6 +470,67 @@ func main() {
 		if !ok {
 			// Row exists in sheet but was skipped from cache (blank name); return minimal object.
 			writeJSON(w, http.StatusOK, Person{Row: body.Row, Recollida: body.Recollida})
+			return
+		}
+		writeJSON(w, http.StatusOK, updated)
+	})
+
+	// POST /api/size changes a person's t-shirt size in the sheet.
+	mux.HandleFunc("POST /api/size", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Row   int    `json:"row"`
+			Talla string `json:"talla"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "cos JSON no vàlid"})
+			return
+		}
+		canonical, ok := normalizeSize(body.Talla)
+		if !ok {
+			writeJSON(w, http.StatusBadRequest, map[string]interface{}{
+				"error":   "talla no permesa; tria una opció de la llista",
+				"allowed": allowedSizes,
+			})
+			return
+		}
+		store.mu.RLock()
+		title := store.sheetTitle
+		sizeCol := store.tallaCol
+		maxRow := store.maxRow
+		store.mu.RUnlock()
+
+		if sizeCol == "" {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "columna de talla no trobada a la fulla"})
+			return
+		}
+		if body.Row < 2 || (maxRow > 0 && body.Row > maxRow) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "fila fora de rang"})
+			return
+		}
+		a1 := fmt.Sprintf("%s!%s%d", title, sizeCol, body.Row)
+		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+		defer cancel()
+		_, err := srv.Spreadsheets.Values.Update(cfg.SpreadsheetID, a1,
+			&sheets.ValueRange{Values: [][]interface{}{{canonical}}},
+		).ValueInputOption("USER_ENTERED").Context(ctx).Do()
+		if err != nil {
+			slog.Error("size write failed", "range", a1, "err", err)
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "no s'ha pogut actualitzar la fulla"})
+			return
+		}
+		// Update cache.
+		store.mu.Lock()
+		for i, p := range store.people {
+			if p.Row == body.Row {
+				store.people[i].Talla = canonical
+				break
+			}
+		}
+		store.mu.Unlock()
+		updated, found := store.find(body.Row)
+		if !found {
+			// Row exists in sheet but was skipped from cache (blank name); return minimal object.
+			writeJSON(w, http.StatusOK, Person{Row: body.Row, Talla: canonical})
 			return
 		}
 		writeJSON(w, http.StatusOK, updated)

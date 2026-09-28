@@ -132,7 +132,7 @@ main {
   align-items: flex-start;
   gap: 0.5rem 0.75rem;
 }
-.top .who { flex: 1 1 60%; min-width: 0; }
+.top .who { flex: 1 1 50%; min-width: 0; }
 .nom {
   font-weight: 700;
   font-size: 1.15rem;
@@ -152,6 +152,87 @@ main {
   text-align: right;
   overflow-wrap: anywhere;
 }
+/* "No vull samarreta": muted grey, clearly not a size */
+.size.none {
+  background: #e5e7eb;
+  color: #4b5563;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+/* Badge + "Canvia talla" stacked on the card's right edge */
+.sizebox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.linkbtn {
+  min-height: 44px;
+  padding: 0.3rem 0.35rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: none;
+  border: none;
+  border-radius: 8px;
+  text-decoration: underline;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.linkbtn[aria-expanded="true"] { background: #fee2e2; text-decoration: none; }
+
+/* Inline size editor — replaces nothing until "Desa" is tapped */
+.size-editor {
+  flex: 1 1 100%;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+  padding: 0.6rem;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+.size-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.size-select {
+  flex: 1 1 11rem;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.5rem 0.6rem;
+  font-family: inherit;
+  font-size: 1rem;
+  color: var(--ink);
+  background: var(--card);
+  border: 2px solid #d1d5db;
+  border-radius: 10px;
+}
+.size-select:focus { outline: none; border-color: var(--accent); }
+.size-select:disabled { opacity: 0.6; }
+.editor-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.editor-msg {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+.editor-msg[hidden] { display: none; }
+
 
 .bottom {
   display: flex;
@@ -193,6 +274,13 @@ main {
   flex: 0 0 auto;
 }
 .btn.undo { background: #4b5563; }
+.btn.sm { min-height: 44px; padding: 0.55rem 1rem; font-size: 0.95rem; }
+.btn.ghost {
+  background: var(--card);
+  color: var(--ink);
+  border: 2px solid #d1d5db;
+}
+.btn.ghost:active { background: #f3f4f6; }
 .btn:disabled { opacity: 0.5; cursor: wait; }
 
 @media (max-width: 480px) {
@@ -204,4 +292,9 @@ main {
   .switch { font-size: 0.9rem; }
   .btn { flex: 1 1 100%; min-height: 48px; }
   .bottom { justify-content: stretch; }
+  /* Size editor stacks full-width at phone widths */
+  .size-editor { flex-direction: column; align-items: stretch; gap: 0.6rem; }
+  .size-select { flex: 1 1 auto; width: 100%; }
+  .editor-actions { width: 100%; }
+  .size-label { align-self: flex-start; }
 }
