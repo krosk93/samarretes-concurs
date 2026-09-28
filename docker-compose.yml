@@ -1,0 +1,10 @@
+services:
+  samarretes:
+    build: .
+    image: samarretes-concurs:latest
+    env_file: .env
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - ./credentials.json:/app/credentials.json:ro
+    restart: unless-stopped

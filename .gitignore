@@ -1,0 +1,6 @@
+.env
+credentials*.json
+creds/*.json
+bin/
+server
+samarretes-concurs
