@@ -11,7 +11,7 @@ Catalan UI to search people and mark T-shirt pickup, backed by Google Sheets.
    ```sh
    cp .env.example .env
    # fill SPREADSHEET_ID (from sheet URL) and SHEET_NAME (or leave empty = first sheet)
-   # put the key at credentials.json (or set GOOGLE_CREDENTIALS_JSON inline)
+   # put the key at credentials.json (or set GOOGLE_CREDENTIALS_JSON as base64)
    ```
 3. **Run:**
    ```sh
@@ -55,7 +55,7 @@ Images are also published to GHCR on push to `main` / tags `v*`
 | SPREADSHEET_ID | (required) | Sheet ID from URL |
 | SHEET_NAME | "" (first sheet) | Tab name |
 | GOOGLE_CREDENTIALS_FILE | credentials.json | Service-account key path |
-| GOOGLE_CREDENTIALS_JSON | "" | Inline key JSON (overrides file) |
+| GOOGLE_CREDENTIALS_JSON | "" | Base64-encoded key JSON (overrides file; `base64 -i credentials.json \| tr -d '\n'`) |
 | PORT | 8080 | HTTP port |
 | REFRESH_INTERVAL_SECONDS | 60 | Cache refresh period |
 

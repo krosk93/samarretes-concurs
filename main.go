@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -69,26 +70,54 @@ func loadConfig() (config, error) {
 	return cfg, nil
 }
 
-func newSheetsService(ctx context.Context, cfg config) (*sheets.Service, error) {
+// saEmail extracts client_email from a service-account JSON key ("" if unknown).
+func saEmail(creds []byte) string {
+	var m struct {
+		ClientEmail string `json:"client_email"`
+	}
+	if err := json.Unmarshal(creds, &m); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(m.ClientEmail)
+}
+
+func newSheetsService(ctx context.Context, cfg config) (*sheets.Service, string, error) {
 	var creds []byte
 	var err error
 	if strings.TrimSpace(cfg.CredentialsJSON) != "" {
-		creds = []byte(cfg.CredentialsJSON)
+		raw := strings.TrimSpace(cfg.CredentialsJSON)
+		if strings.HasPrefix(raw, "{") {
+			creds = []byte(raw)
+		} else {
+			decoders := []*base64.Encoding{base64.StdEncoding, base64.URLEncoding, base64.RawStdEncoding, base64.RawURLEncoding}
+			var decErr error
+			for _, enc := range decoders {
+				var d []byte
+				d, decErr = enc.DecodeString(raw)
+				if decErr == nil {
+					creds = d
+					break
+				}
+			}
+			if creds == nil {
+				return nil, "", fmt.Errorf("decode GOOGLE_CREDENTIALS_JSON as base64: %w", decErr)
+			}
+		}
 	} else {
 		creds, err = os.ReadFile(cfg.CredentialsFile)
 		if err != nil {
-			return nil, fmt.Errorf("read credentials file %q: %w", cfg.CredentialsFile, err)
+			return nil, "", fmt.Errorf("read credentials file %q: %w", cfg.CredentialsFile, err)
 		}
 	}
 	jwtCfg, err := google.JWTConfigFromJSON(creds, sheets.SpreadsheetsScope)
 	if err != nil {
-		return nil, fmt.Errorf("parse service-account JSON: %w", err)
+		return nil, "", fmt.Errorf("parse service-account JSON: %w", err)
 	}
 	srv, err := sheets.NewService(ctx, option.WithHTTPClient(jwtCfg.Client(ctx)))
 	if err != nil {
-		return nil, fmt.Errorf("create sheets service: %w", err)
+		return nil, "", fmt.Errorf("create sheets service: %w", err)
 	}
-	return srv, nil
+	return srv, saEmail(creds), nil
 }
 
 // Store holds the cached people plus sheet metadata for writes.
@@ -277,18 +306,19 @@ func main() {
 	}
 
 	ctx := context.Background()
-	srv, err := newSheetsService(ctx, cfg)
+	srv, sa, err := newSheetsService(ctx, cfg)
 	if err != nil {
 		slog.Error("sheets auth failed", "err", err)
 		os.Exit(1)
 	}
+	slog.Info("sheets client ready", "service_account", sa, "spreadsheet_id", cfg.SpreadsheetID, "sheet_name", cfg.SheetName)
 
 	store := &Store{}
 	refresh := func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		if err := store.fetchAll(ctx, srv, cfg); err != nil {
-			slog.Error("refresh failed", "err", err)
+			slog.Error("refresh failed", "err", err, "hint", "share sheet with service_account as Editor")
 			return
 		}
 		slog.Info("refreshed cache", "count", len(store.getAll()))
