@@ -79,7 +79,7 @@ func NormalizeEmail(s string) string {
 }
 
 // NormalizeDataNaixement accepta DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD i
-// DD.MM.YYYY (també YYYY/MM/DD i YYYY.MM.DD) i retorna YYYY-MM-DD.
+// DD.MM.YYYY (també YYYY/MM/DD i YYYY.MM.DD) i retorna DD/MM/YYYY.
 // Retorna "" quan és buit o data invàlida (dia/mes fora de rang,
 // 29/02 en no-traspàs, any fora de [1900,2100]).
 func NormalizeDataNaixement(s string) string {
@@ -137,7 +137,7 @@ func NormalizeDataNaixement(s string) string {
 	if rt.Year() != y || int(rt.Month()) != m || rt.Day() != d {
 		return ""
 	}
-	return fmt.Sprintf("%04d-%02d-%02d", y, m, d)
+	return fmt.Sprintf("%02d/%02d/%04d", d, m, y)
 }
 
 // NormalizePosicio neteja text lliure de posició habitual.
