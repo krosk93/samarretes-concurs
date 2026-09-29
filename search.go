@@ -22,6 +22,19 @@ func Normalize(s string) string {
 	return out
 }
 
+// personHaystack builds the searchable text for one person: name + alias +
+// raw colla + resolved official nom + resolved sigles (all).
+func personHaystack(p Person) string {
+	parts := []string{p.Nom, p.Alies, p.Colla}
+	for _, s := range CollaSiglesTotes(p.Colla) {
+		parts = append(parts, s)
+		if nom := CollaNomOficial(s); nom != "" {
+			parts = append(parts, nom)
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
 type scored struct {
 	p    Person
 	tier int // 0 exact substring, 1 token-prefix, 2 all-tokens, 3 fuzzy
@@ -41,15 +54,29 @@ func SearchPeople(people []Person, query string) []Person {
 		copy(out, people)
 		return out
 	}
-	q := Normalize(query)
+	q := normCollaText(query)
 	qTokens := strings.Fields(q)
+
+	// "sense colla" queries return people without colla.
+	if isCapNorm(q) {
+		var out []Person
+		for _, p := range people {
+			if CollaSigles(p.Colla) == "CAP" {
+				out = append(out, p)
+			}
+			if len(out) >= 50 {
+				break
+			}
+		}
+		return out
+	}
 
 	var scoredList []scored
 	for _, p := range people {
-		combined := Normalize(p.Nom + " " + p.Alies)
+		combined := normCollaText(personHaystack(p))
 		nameTokens := strings.Fields(combined)
 
-		// Tier 0: exact substring of combined "nom alies".
+		// Tier 0: exact substring of combined "nom alies colla + resoltes".
 		if idx := strings.Index(combined, q); idx >= 0 {
 			scoredList = append(scoredList, scored{p, 0, idx})
 			continue
@@ -91,13 +118,13 @@ func SearchPeople(people []Person, query string) []Person {
 		}
 	}
 
-	// Tier 3 fallback: fuzzy ranking on "nom + alies" for the rest.
+	// Tier 3 fallback: fuzzy ranking on haystack for the rest.
 	if len(scoredList) == 0 && len(people) > 0 {
 		targets := make([]string, len(people))
 		normTargets := make([]string, len(people))
 		for i, p := range people {
-			targets[i] = p.Nom + " " + p.Alies
-			normTargets[i] = Normalize(targets[i])
+			targets[i] = personHaystack(p)
+			normTargets[i] = normCollaText(targets[i])
 		}
 		ranks := fuzzy.RankFind(q, normTargets)
 		// Map fuzzy hits back to people (targets are unique-ish; match by index).

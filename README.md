@@ -67,6 +67,9 @@ Images are also published to GHCR on push to `main` / tags `v*`
 | GOOGLE_CREDENTIALS_JSON | "" | Base64-encoded key JSON (overrides file; `base64 -i credentials.json \| tr -d '\n'`) |
 | PORT | 8080 | HTTP port |
 | REFRESH_INTERVAL_SECONDS | 60 | Cache refresh period |
+| APPSISTENCIA_URL | https://xiquetsdelserrallo.appsistencia.cat | Appsistència base URL |
+| APPSISTENCIA_USER | "" (disabled) | Appsistència login user (or APPSISTENCIA_USERNAME) |
+| APPSISTENCIA_PASSWORD | "" (disabled) | Appsistència login password |
 
 ## API
 
@@ -76,6 +79,9 @@ Images are also published to GHCR on push to `main` / tags `v*`
 - `GET /api/people` → all rows (each row includes `modalitat` and `acompanya`)
 - `POST /api/toggle` `{"row":int,"recollida":bool}` → updated object
 - `POST /api/size` `{"row":int,"talla":string}` → updated object
+- `GET /api/appsistencia/status` → `{"configured","loggedIn","hasSession","baseURL","user","castellers","fetchedAt"}`
+- `POST /api/appsistencia/login` → force (re)login with env credentials + refresh castellers cache
+- `GET /api/appsistencia/castellers` → cached raw JSON from `/api/castellers?order=asc` (503 when empty)
 
   Allowed `talla` (trimmed, case-insensitive): `S`, `M`, `L`, `XL`, `XXL`,
   `Ja tinc una samarreta dels Xiquets del Serrallo` — stored canonically

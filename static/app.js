@@ -61,17 +61,45 @@ function sizeOptionsHtml(current) {
   return html;
 }
 
+function normAlias(s) {
+  return String(s ?? '').normalize('NFC').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+// "Alies final" row: hidden when empty; when it equals the current alias we show
+// a quiet confirmation chip instead of repeating the same text.
+function aliesFinalHtml(p) {
+  const final = String(p.aliesFinal ?? '').trim();
+  if (!final) return { meta: '', line: '' };
+  if (normAlias(final) === normAlias(p.alies)) {
+    return {
+      meta: '<span class="final-ok" title="Coincideix amb l\u2019àlies actual">✓ Alies final</span>',
+      line: '',
+    };
+  }
+  return {
+    meta: '',
+    line: `<div class="aliesfinal"><span class="aliesfinal-k">Alies final</span>${escapeHtml(final)}</div>`,
+  };
+}
+
 function card(p) {
   const li = document.createElement('li');
   li.className = 'card' + (p.recollida ? ' done' : '') + (p.acompanya ? ' acompanya' : '');
   li.dataset.row = p.row;
 
-  const meta = [p.alies, p.colla].filter(Boolean).map(escapeHtml).join(' · ');
+  const af = aliesFinalHtml(p);
+  const metaBits = [p.alies, p.colla].filter(Boolean).map(escapeHtml);
+  if (af.meta) metaBits.push(af.meta);
+  const meta = metaBits.join(' · ');
   const status = p.recollida
     ? '<span class="pill ok">✓ Recollida</span>'
     : '<span class="pill pending">Pendent</span>';
   const acomp = p.acompanya
     ? `<span class="pill acomp" title="${escapeHtml(p.modalitat || '')}">⚠ Acompanyant — sense pinya</span>`
+    : '';
+  // External-system flag: read-only. Missing/undefined flag renders nothing.
+  const apps = p.enAppsistencia
+    ? `<span class="pill apps" title="${escapeHtml('Aquesta persona ja és a Appsistència')}">${escapeHtml('A Appsistència')}</span>`
     : '';
   const btn = p.recollida
     ? '<button class="btn undo" data-action="unmark">Desmarca</button>'
@@ -82,6 +110,7 @@ function card(p) {
       <div class="who">
         <div class="nom">${escapeHtml(p.nom || '(sense nom)')}</div>
         ${meta ? `<div class="meta">${meta}</div>` : ''}
+        ${af.line}
       </div>
       <div class="sizebox">
         ${sizeBadge(p.talla)}
@@ -90,7 +119,7 @@ function card(p) {
       </div>
     </div>
     <div class="bottom">
-      <div class="pills">${status}${acomp}</div>
+      <div class="pills">${status}${acomp}${apps}</div>
       ${btn}
     </div>`;
   return li;

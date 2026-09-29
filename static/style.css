@@ -1,33 +1,64 @@
+/* Colors reals d'xiquetsdelserrallo.cat: camisa blau marí + blancs, grisos i accent blau */
 :root {
-  --bg: #f6f4ee;
+  --navy: #071f6d;        /* blau marí colla (logo, --gcid-primary-color) */
+  --navy-deep: #1b365d;   /* blau fosc, capçaleres i hover */
+  --navy-hover: #0a2c96;  /* blau marí en hover */
+  --blue: #1098f2;        /* accent secundari del web (--gcid-secondary-color) */
+  --blue-ink: #0b5fa8;    /* blau fosc per a text (contrast AA) */
+  --blue-soft: #eaf2fe;   /* tint blau clar */
+  --bg: #eef2f9;          /* fons blanc tintat de blau marí */
   --card: #ffffff;
-  --ink: #1f2937;
-  --muted: #6b7280;
+  --ink: #1b365d;
+  --muted: #666666;       /* color de text del web */
+  --line: #e2e2e2;        /* vells del web */
+  --line-strong: #c9d2e3;
   --ok: #15803d;
   --ok-bg: #dcfce7;
-  --pend: #a16207;
-  --pend-bg: #fef9c3;
-  --acomp: #92400e;
-  --acomp-bg: #fff7ed;
-  --accent: #b91c1c;
+  --pend: #8a5a00;        /* or del web #E09900 enfosquit per contrast AA */
+  --pend-bg: #fdf1dc;
+  --gold: #b07d0b;        /* vora pendent, contrast >=3:1 sobre blanc */
+  --acomp: #0b5fa8;
+  --acomp-bg: #eaf2fe;
+  --accent: var(--navy);
+  --focus: var(--navy);
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: Poppins, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   background: var(--bg);
   color: var(--ink);
   overflow-wrap: break-word;
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
+
+/* --- Header: banda blau marí amb logo de la colla --- */
 header {
   text-align: center;
-  padding: calc(1.5rem + env(safe-area-inset-top)) 1rem 0.5rem;
+  padding: calc(1rem + env(safe-area-inset-top)) 1rem 1.15rem;
+  background: var(--navy);
+  color: #fff;
+  border-bottom: 4px solid var(--blue);
 }
-header h1 { margin: 0; font-size: 1.6rem; overflow-wrap: anywhere; }
-.sub { color: var(--muted); margin: 0.25rem 0 0; }
+.brand { display: flex; justify-content: center; }
+.logo {
+  width: min(76vw, 290px);
+  height: auto;
+  background: #fff;
+  padding: 0.55rem 0.85rem;
+  border-radius: 14px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+header h1 {
+  margin: 0.9rem 0 0;
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+.sub { color: #b9c6ee; margin: 0.3rem 0 0; font-size: 0.95rem; }
 main {
   max-width: 720px;
   margin: 0 auto;
@@ -43,16 +74,18 @@ main {
   padding: calc(0.5rem + env(safe-area-inset-top)) 0 0.5rem;
   transition: box-shadow 0.18s ease;
 }
-.toolbar.stuck { box-shadow: 0 12px 18px -16px rgba(31, 41, 55, 0.75); }
+.toolbar.stuck { box-shadow: 0 12px 18px -16px rgba(7, 31, 109, 0.75); }
 #q {
   width: 100%;
   font-size: 1.3rem;
   padding: 0.75rem 1rem;
   border-radius: 14px;
-  border: 2px solid #d1d5db;
+  border: 2px solid var(--line-strong);
   background: var(--card);
+  color: var(--ink);
 }
-#q:focus { outline: none; border-color: var(--accent); }
+#q:focus { outline: none; border-color: var(--navy); }
+#q:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 .controls {
   display: flex;
   flex-wrap: wrap;
@@ -62,6 +95,15 @@ main {
   margin-top: 0.5rem;
 }
 .count { color: var(--muted); font-size: 0.88rem; margin-left: auto; }
+
+/* Focus visible, coherent a tota la UI */
+.switch:has(input:focus-visible),
+.linkbtn:focus-visible,
+.btn:focus-visible,
+.size-select:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
 
 /* Hide-toggle: >=44px touch target */
 .switch {
@@ -81,19 +123,20 @@ main {
   width: 1.25rem;
   height: 1.25rem;
   margin: 0;
-  accent-color: var(--accent);
+  accent-color: var(--navy);
   cursor: pointer;
   flex: 0 0 auto;
 }
-.switch:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+.switch:has(input:focus-visible) { border-radius: 8px; }
 
 .status {
-  background: #fee2e2;
-  border: 1px solid #fca5a5;
+  background: #fdecec;
+  border: 1px solid #f2b8b8;
   padding: 0.6rem 0.8rem;
   border-radius: 10px;
   margin-top: 0.5rem;
   font-size: 0.95rem;
+  color: #8a1f1f;
 }
 
 .cards {
@@ -109,17 +152,17 @@ main {
   background: var(--card);
   border-radius: 14px;
   padding: 0.9rem 1rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  border-left: 6px solid #eab308;
+  box-shadow: 0 1px 3px rgba(7, 31, 109, 0.12);
+  border-left: 6px solid var(--gold);
   overflow-wrap: anywhere;
 }
 .card.done { border-left-color: var(--ok); }
 .card.acompanya {
-  border-left-color: #f59e0b;
+  border-left-color: var(--blue);
   background: var(--acomp-bg);
 }
 .card.empty {
-  border-left-color: #d1d5db;
+  border-left-color: var(--line-strong);
   color: var(--muted);
   font-size: 0.95rem;
   background: var(--card);
@@ -140,12 +183,42 @@ main {
   word-break: break-word;
 }
 .meta { color: var(--muted); margin-top: 0.15rem; font-size: 0.92rem; }
+
+/* "Alies final": secondary line under nom/meta — quieter than nom/àlies/talla */
+.aliesfinal {
+  margin-top: 0.3rem;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.aliesfinal-k {
+  display: inline-block;
+  margin-right: 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--blue-ink);
+}
+/* Coincides with current alias: confirmation chip, no repeated value */
+.final-ok {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: var(--blue-soft);
+  border: 1px solid var(--line-strong);
+  color: var(--blue-ink);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
 .size {
   flex: 0 1 auto;
   min-width: 0;
   font-size: 1.4rem;
   font-weight: 800;
-  background: #1f2937;
+  background: var(--navy);
   color: #fff;
   border-radius: 10px;
   padding: 0.15rem 0.7rem;
@@ -154,7 +227,7 @@ main {
 }
 /* "No vull samarreta": muted grey, clearly not a size */
 .size.none {
-  background: #e5e7eb;
+  background: var(--line);
   color: #4b5563;
   font-size: 0.95rem;
   font-weight: 700;
@@ -177,7 +250,7 @@ main {
   font-family: inherit;
   font-size: 0.85rem;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--blue-ink);
   background: none;
   border: none;
   border-radius: 8px;
@@ -185,7 +258,7 @@ main {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.linkbtn[aria-expanded="true"] { background: #fee2e2; text-decoration: none; }
+.linkbtn[aria-expanded="true"] { background: var(--blue-soft); text-decoration: none; }
 
 /* Inline size editor — replaces nothing until "Desa" is tapped */
 .size-editor {
@@ -197,14 +270,14 @@ main {
   gap: 0.5rem;
   margin-top: 0.4rem;
   padding: 0.6rem;
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
+  background: var(--blue-soft);
+  border: 1px solid var(--line-strong);
   border-radius: 12px;
 }
 .size-label {
   font-size: 0.85rem;
   font-weight: 700;
-  color: var(--muted);
+  color: var(--blue-ink);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -217,10 +290,10 @@ main {
   font-size: 1rem;
   color: var(--ink);
   background: var(--card);
-  border: 2px solid #d1d5db;
+  border: 2px solid var(--line-strong);
   border-radius: 10px;
 }
-.size-select:focus { outline: none; border-color: var(--accent); }
+.size-select:focus { outline: none; border-color: var(--navy); }
 .size-select:disabled { opacity: 0.6; }
 .editor-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .editor-msg {
@@ -228,7 +301,7 @@ main {
   margin: 0;
   font-size: 0.88rem;
   font-weight: 600;
-  color: var(--accent);
+  color: #8a1f1f;
   overflow-wrap: anywhere;
 }
 .editor-msg[hidden] { display: none; }
@@ -255,11 +328,22 @@ main {
 .pill.acomp {
   background: var(--acomp-bg);
   color: var(--acomp);
-  border: 1.5px dashed #f59e0b;
+  border: 1.5px dashed var(--blue);
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+}
+/* "A Appsistència": tag de sistema extern — tinta blau marí sòlida perquè
+   es llegeixi igual amb la card blanca (normal/done) i amb la card blava (acompanya) */
+.pill.apps {
+  background: var(--navy);
+  color: #fff;
+  border: 1.5px solid var(--navy-deep);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 .btn {
   font-size: 1rem;
@@ -268,19 +352,23 @@ main {
   padding: 0.6rem 1rem;
   border-radius: 10px;
   border: none;
-  background: var(--accent);
+  background: var(--navy);
   color: #fff;
   cursor: pointer;
   flex: 0 0 auto;
+  transition: background-color 0.15s ease;
 }
-.btn.undo { background: #4b5563; }
+.btn:hover:not(:disabled) { background: var(--navy-hover); }
+.btn.undo { background: #44506b; }
+.btn.undo:hover { background: var(--navy-deep); }
 .btn.sm { min-height: 44px; padding: 0.55rem 1rem; font-size: 0.95rem; }
 .btn.ghost {
   background: var(--card);
   color: var(--ink);
-  border: 2px solid #d1d5db;
+  border: 2px solid var(--line-strong);
 }
-.btn.ghost:active { background: #f3f4f6; }
+.btn.ghost:hover { background: var(--blue-soft); }
+.btn.ghost:active { background: var(--blue-soft); }
 .btn:disabled { opacity: 0.5; cursor: wait; }
 
 @media (max-width: 480px) {
@@ -292,9 +380,14 @@ main {
   .switch { font-size: 0.9rem; }
   .btn { flex: 1 1 100%; min-height: 48px; }
   .bottom { justify-content: stretch; }
+  header h1 { font-size: 1.35rem; }
   /* Size editor stacks full-width at phone widths */
   .size-editor { flex-direction: column; align-items: stretch; gap: 0.6rem; }
   .size-select { flex: 1 1 auto; width: 100%; }
   .editor-actions { width: 100%; }
   .size-label { align-self: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
 }
