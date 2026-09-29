@@ -3,8 +3,19 @@ services:
     build: .
     image: samarretes-concurs:latest
     env_file: .env
+    # Per a desenvolupament local contra el mock: APPSISTENCIA_URL=http://mock-appsistencia:8081
     ports:
       - "${PORT:-8080}:8080"
     volumes:
       - ./credentials.json:/app/credentials.json:ro
+    restart: unless-stopped
+  mock-appsistencia:
+    build: ./mock
+    image: mock-appsistencia:latest
+    ports:
+      - "${MOCK_PORT:-8081}:8081"
+    environment:
+      PORT: "8081"
+      MOCK_USER: "${MOCK_USER:-test}"
+      MOCK_PASSWORD: "${MOCK_PASSWORD:-test}"
     restart: unless-stopped

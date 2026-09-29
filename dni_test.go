@@ -11,8 +11,8 @@ import (
 
 func TestNormalizeDoc(t *testing.T) {
 	cases := []struct{ in, want string }{
-		{"O0123456 PASSAPORT", "o123456"},
-		{"(Passaport Andorra) 0011223", "00112233"},
+		{"O0123456 PASSAPORT", "o0123456"},
+		{"(Passaport Andorra) 0011223", "0011223"},
 		{"12345678-N", "12345678n"},
 		{"12345678W", "12345678w"},
 		{"", ""},

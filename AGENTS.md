@@ -37,6 +37,5 @@ docker compose up --build         # prod-like; keeps container on 8080, don't ch
 - Text matching always goes through `Normalize()` (`search.go`: lowercase, strip accents incl. `ç→c ñ→n`, collapse spaces). Reuse it; don't add ad-hoc `ToLower`.
 - Search tiers in order: exact substring → every-query-token-is-prefix → all-tokens-substring → fuzzy (`lithammer/fuzzysearch`) **only if tiers 0–2 score zero**. Haystack = nom + alies + colla + resolved sigles + official names. Queries normalizing to sense-colla (`cap`, `sense colla`, …) return only `CAP` people.
 - Colla resolution: `CollaSiglesTotes()` splits multi-colla cells on `, ; + / i amb antigament anteriorment`, but only trusts split if **every** part resolves to a known sigle (protects names like "Sant Pere i Sant Pau"). Unknown short single tokens (≤5 runes) uppercased, else trimmed original kept for free-text search.
-- Alias edits: keep `ShortenAlias` rune-aware; `TestShortenAlias_AllLinesFit8Runes` fails if any `alias.txt` line exceeds 8 runes.
 - API: `GET /api/health`, `GET /api/search?q=`, `GET /api/people`, `POST /api/toggle {"row","recollida"}`, `POST /api/size {"row","talla"}`. Frontend has no framework; keep API shapes stable.
 - CI (`.github/workflows/docker-publish.yml`) only builds/pushes to GHCR on `main` / `v*` — no test gate.

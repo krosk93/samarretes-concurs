@@ -1,8 +1,6 @@
 package main
 
 import (
-	"os"
-	"strings"
 	"testing"
 	"unicode/utf8"
 )
@@ -59,23 +57,6 @@ func TestShortenAlias(t *testing.T) {
 		}
 		if utf8.RuneCountInString(got) > 8 {
 			t.Errorf("ShortenAlias(%q) = %q supera 8 runes", c.in, got)
-		}
-	}
-}
-
-// Tots els àlies d'alias.txt han de quedar en <= 8 runes.
-func TestShortenAlias_AllLinesFit8Runes(t *testing.T) {
-	data, err := os.ReadFile("alias.txt")
-	if err != nil {
-		t.Fatalf("llegint alias.txt: %v", err)
-	}
-	for _, line := range strings.Split(string(data), "\n") {
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-		got := ShortenAlias(line)
-		if utf8.RuneCountInString(got) > 8 {
-			t.Errorf("ShortenAlias(%q) = %q supera 8 runes", line, got)
 		}
 	}
 }

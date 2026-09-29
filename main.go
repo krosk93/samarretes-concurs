@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -44,8 +45,15 @@ type Person struct {
 	AliesFinal string `json:"aliesFinal"`
 	// AltaApp is read-only for a future feature (no writes).
 	AltaApp string `json:"altaApp"`
+	// Raw contact/attribute cells for Appsistència creation (never serialized).
+	Telefon       string `json:"-"`
+	Email         string `json:"-"`
+	DataNaixement string `json:"-"`
+	AlcadaRaw    string `json:"-"`
+	PosicioRaw    string `json:"-"`
+	// AppsistenciaResult is transient per-toggle status, never cached.
+	AppsistenciaResult string `json:"appsistencia,omitempty"`
 }
-
 type config struct {
 	SpreadsheetID   string
 	SheetName       string
@@ -199,6 +207,37 @@ func findModalitatCol(headers []string) int {
 	return -1
 }
 
+// findFirstCol tries needles in order, returns first hit or -1.
+func findFirstCol(headers []string, needles []string) int {
+	for _, needle := range needles {
+		if i := findCol(headers, needle); i >= 0 {
+			return i
+		}
+	}
+	return -1
+}
+
+// findPosicioCol locates the "Posició habitual a la pinya" column.
+// Prefers "posicio"/"habitual" needles; "pinya" is only a fallback on a
+// *different* column than modalitat (avoids colliding with the
+// "Vols fer pinya...?" choice column).
+func findPosicioCol(headers []string, modalitatIdx int) int {
+	for _, needle := range []string{"posicio", "habitual"} {
+		if i := findCol(headers, needle); i >= 0 {
+			return i
+		}
+	}
+	for i, h := range headers {
+		if i == modalitatIdx {
+			continue
+		}
+		if strings.Contains(Normalize(h), "pinya") {
+			return i
+		}
+	}
+	return -1
+}
+
 // isAcompanya reports whether the modalitat cell opts to accompany without pinya.
 // Accent- and case-insensitive via Normalize.
 func isAcompanya(v string) bool {
@@ -334,6 +373,11 @@ func (s *Store) fetchAll(ctx context.Context, srv *sheets.Service, cfg config) e
 			break
 		}
 	}
+	iTelefon := findFirstCol(rawHeaders, []string{"telefon", "mobil", "contacte"})
+	iEmail := findFirstCol(rawHeaders, []string{"correu", "email", "mail"})
+	iNaixement := findFirstCol(rawHeaders, []string{"naixement", "nacimiento", "birth", "data naix"})
+	iAlcada := findFirstCol(rawHeaders, []string{"alcada", "espatlles", "altura", "height"})
+	iPosicio := findPosicioCol(rawHeaders, iModalitat)
 
 	var people []Person
 	for r := 1; r < len(resp.Values); r++ {
@@ -351,17 +395,22 @@ func (s *Store) fetchAll(ctx context.Context, srv *sheets.Service, cfg config) e
 			final = BuildFinalAlias(alies, nom, colla)
 		}
 		people = append(people, Person{
-			Row:        r + 1, // 1-based sheet row
-			Nom:        nom,
-			Alies:      alies,
-			Colla:      colla,
-			Talla:      cellString(row, iTalla),
-			Recollida:  parseCollected(cellString(row, iRecollida)),
-			Modalitat:  modalitat,
-			Acompanya:  isAcompanya(modalitat),
-			AliesFinal: final,
-			AltaApp:    cellString(row, iAltaApp),
-			DNI:        cellString(row, iDNI),
+			Row:           r + 1, // 1-based sheet row
+			Nom:           nom,
+			Alies:         alies,
+			Colla:         colla,
+			Talla:         cellString(row, iTalla),
+			Recollida:     parseCollected(cellString(row, iRecollida)),
+			Modalitat:     modalitat,
+			Acompanya:     isAcompanya(modalitat),
+			AliesFinal:    final,
+			AltaApp:       cellString(row, iAltaApp),
+			DNI:           cellString(row, iDNI),
+			Telefon:       cellString(row, iTelefon),
+			Email:         cellString(row, iEmail),
+			DataNaixement: cellString(row, iNaixement),
+			AlcadaRaw:     cellString(row, iAlcada),
+			PosicioRaw:    cellString(row, iPosicio),
 		})
 	}
 
@@ -599,6 +648,7 @@ func main() {
 		title := store.sheetTitle
 		recCol := store.recollidaCol
 		finalCol := store.aliesFinalCol
+		altaCol := store.altaAppCol
 		maxRow := store.maxRow
 		store.mu.RUnlock()
 
@@ -618,50 +668,126 @@ func main() {
 		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 		defer cancel()
 
+		// Snapshot cached per alies/DNI/alta (la creació necessita raws).
+		cached, hasCached := store.find(body.Row)
+
 		// Lazy fill d'"Alies final": només quan cal omplir la cel·la buida
-		// d'aquesta fila, i sempre en UN sol BatchUpdate amb la recollida
-		// (mai 2 Updates separats: quota 60 writes/min).
+		// d'aquesta fila. La decisió requereix llegir la cel·la (la cache
+		// guarda el fallback computat, no l'estat buit/ple del sheet).
 		fill := ""
-		if cached, ok := store.find(body.Row); ok && finalCol != "" {
+		fRange := ""
+		if hasCached && finalCol != "" {
 			if computed := BuildFinalAlias(cached.Alies, cached.Nom, cached.Colla); computed != "" {
-				fRange := fmt.Sprintf("%s!%s%d", title, finalCol, body.Row)
+				fRange = fmt.Sprintf("%s!%s%d", title, finalCol, body.Row)
 				getResp, getErr := srv.Spreadsheets.Values.Get(cfg.SpreadsheetID, fRange).Context(ctx).Do()
 				existent := ""
 				if getErr != nil {
 					// Read fallat: no bloquejar la marca, escriure només recollida.
 					slog.Warn("toggle alies final read failed, writing recollida only", "range", fRange, "err", getErr)
+					fRange = ""
 				} else {
 					if len(getResp.Values) > 0 {
 						existent = cellString(getResp.Values[0], 0)
 					}
 					if shouldFillAliesFinal(existent, computed) {
 						fill = computed
-					}
-				}
-				if fill != "" {
-					_, err := srv.Spreadsheets.Values.BatchUpdate(cfg.SpreadsheetID,
-						&sheets.BatchUpdateValuesRequest{
-							ValueInputOption: "USER_ENTERED",
-							Data: []*sheets.ValueRange{
-								{Range: a1, Values: [][]interface{}{{val}}},
-								{Range: fRange, Values: [][]interface{}{{sheetsTextValue(fill)}}},
-							},
-						},
-					).Context(ctx).Do()
-					if err != nil {
-						slog.Error("toggle write failed", "range", a1+"."+fRange, "err", err)
-						writeJSON(w, http.StatusBadGateway, map[string]string{"error": "sheets update failed"})
-						return
+					} else {
+						fRange = ""
 					}
 				}
 			}
 		}
-		if fill == "" {
+
+		// Creació automàtica a Appsistència: només amb recollida=true.
+		// Mai falla el toggle: skip silenciós o error loguejat.
+		appsResult := ""
+		needAlta := false
+		if body.Recollida {
+			appsResult = AppsResultSkipped
+			effectiveAlias := ""
+			if fill != "" {
+				effectiveAlias = fill
+			} else if hasCached {
+				effectiveAlias = cached.AliesFinal
+			}
+			if appsFlagClient == nil || !appsFlagClient.Configured() {
+				// skip silenciós: feature desactivada.
+			} else if !hasCached {
+				slog.Warn("appsistencia create skipped: row not in cache", "row", body.Row)
+			} else if res, ok := classifyAppsCreate(true,
+				appsFlagClient.HasDoc(cached.DNI),
+				NormalizeDoc(cached.DNI) == "",
+				parseCollected(cached.AltaApp)); !ok {
+				appsResult = res
+				if NormalizeDoc(cached.DNI) == "" && !appsFlagClient.HasDoc(cached.DNI) && !parseCollected(cached.AltaApp) {
+					slog.Warn("appsistencia create skipped: empty DNI", "row", body.Row)
+				}
+			} else {
+				payload := BuildCastellerPayload(cached, effectiveAlias)
+				err := appsFlagClient.CreateCasteller(ctx, payload)
+				if err != nil && errors.Is(err, errAppsistenciaAuth) {
+					// Sessió caducada: re-login + 1 retry.
+					if lerr := appsFlagClient.Login(ctx); lerr == nil {
+						err = appsFlagClient.CreateCasteller(ctx, payload)
+					} else {
+						slog.Warn("appsistencia re-login failed", "row", body.Row, "err", lerr)
+					}
+				}
+				if err != nil {
+					slog.Warn("appsistencia create failed, recollida kept", "row", body.Row, "err", err)
+					appsResult = AppsResultError
+				} else {
+					appsResult = AppsResultCreated
+					needAlta = true
+				}
+			}
+		}
+
+		// UN sol BatchUpdate amb recollida + alies final (si cal) + alta app
+		// (si creada). Quota 60 writes/min: mai 2 Updates separats.
+		altaRange := ""
+		if needAlta {
+			if altaCol == "" {
+				slog.Warn("appsistencia created but alta app column missing, sheet not updated", "row", body.Row)
+				needAlta = false
+			} else {
+				altaRange = fmt.Sprintf("%s!%s%d", title, altaCol, body.Row)
+			}
+		}
+		data := []*sheets.ValueRange{
+			{Range: a1, Values: [][]interface{}{{val}}},
+		}
+		if fill != "" && fRange != "" {
+			data = append(data, &sheets.ValueRange{Range: fRange, Values: [][]interface{}{{sheetsTextValue(fill)}}})
+		}
+		if altaRange != "" {
+			data = append(data, &sheets.ValueRange{Range: altaRange, Values: [][]interface{}{{"TRUE"}}})
+		}
+		if len(data) == 1 {
 			_, err := srv.Spreadsheets.Values.Update(cfg.SpreadsheetID, a1,
 				&sheets.ValueRange{Values: [][]interface{}{{val}}},
 			).ValueInputOption("USER_ENTERED").Context(ctx).Do()
 			if err != nil {
 				slog.Error("toggle write failed", "range", a1, "err", err)
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "sheets update failed"})
+				return
+			}
+		} else {
+			_, err := srv.Spreadsheets.Values.BatchUpdate(cfg.SpreadsheetID,
+				&sheets.BatchUpdateValuesRequest{
+					ValueInputOption: "USER_ENTERED",
+					Data:             data,
+				},
+			).Context(ctx).Do()
+			if err != nil {
+				ranges := a1
+				if fRange != "" {
+					ranges += "." + fRange
+				}
+				if altaRange != "" {
+					ranges += "." + altaRange
+				}
+				slog.Error("toggle write failed", "range", ranges, "err", err)
 				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "sheets update failed"})
 				return
 			}
@@ -674,6 +800,9 @@ func main() {
 				if fill != "" {
 					store.people[i].AliesFinal = fill
 				}
+				if needAlta {
+					store.people[i].AltaApp = "TRUE"
+				}
 				break
 			}
 		}
@@ -681,10 +810,14 @@ func main() {
 		updated, ok := store.find(body.Row)
 		if !ok {
 			// Row exists in sheet but was skipped from cache (blank name); return minimal object.
-			writeJSON(w, http.StatusOK, applyAppsistenciaFlag([]Person{{Row: body.Row, Recollida: body.Recollida}})[0])
+			min := applyAppsistenciaFlag([]Person{{Row: body.Row, Recollida: body.Recollida}})[0]
+			min.AppsistenciaResult = appsResult
+			writeJSON(w, http.StatusOK, min)
 			return
 		}
-		writeJSON(w, http.StatusOK, applyAppsistenciaFlag([]Person{updated})[0])
+		out := applyAppsistenciaFlag([]Person{updated})[0]
+		out.AppsistenciaResult = appsResult
+		writeJSON(w, http.StatusOK, out)
 	})
 
 	// POST /api/size changes a person's t-shirt size in the sheet.
